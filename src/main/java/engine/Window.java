@@ -4,6 +4,7 @@ import org.lwjgl.Version;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 
+import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
@@ -18,6 +19,10 @@ public class Window {
     private String title;
     private long glfwWindow;
 
+    private float r, g, b, a;
+
+    private boolean fadeToBlack = false;
+
     // creamos un objeto privado window que es el singleton
     //inicializado a null. Esta es nuestra unica instancia de window.
     private static Window window = null;
@@ -26,6 +31,10 @@ public class Window {
         this.width = 1920;
         this.height = 1080;
         this.title = "mario";
+        r = 1;
+        b = 1;
+        g = 1;
+        a = 1;
     }
 
     public static Window get(){
@@ -40,6 +49,15 @@ public class Window {
         //Asi sabemos que version es la de lwjgl
         init();
         loop();
+
+        //2:As we use C bindings we allocate resources with memory. Hava is not handling that memory
+        //Thus once our loop has exited we must free the memory.
+        glfwFreeCallbacks(glfwWindow);
+        glfwDestroyWindow(glfwWindow);
+
+        //2: then we want to terminate GLFW and free the error callback
+        glfwTerminate();
+        glfwSetErrorCallback(null).free();
     }
 
     //Debemos hacer varias cosas manuales para que corra la ventana
@@ -63,7 +81,7 @@ public class Window {
         //Nos aseguramos que arranque con el tamanio completo
         glfwWindowHint(GLFW_MAXIMIZED,GLFW_TRUE);
 
-        //Ahora si creamos la ventana. Hacemos lo anterior porque queremos que GLFW use esas hints para configurar la ventana.
+        //Creamos la ventana. Hacemos lo anterior porque queremos que GLFW use esas hints para configurar la ventana.
         glfwWindow = glfwCreateWindow(this.width,this.height,this.title, NULL, NULL);
         //glfwCreateWindow retorna un LONG, numero que es una direccion en memoria donde la ventana se aloja.
 
@@ -71,6 +89,14 @@ public class Window {
             throw new IllegalStateException("Error en la creacion de la ventana glfw");
 
         }
+        //2 necesitamos una ventana ara crear los callback
+        //2 el :: es una sintaxis de java que llama a una funcion lambda
+        //2 que forwards things to a function. Queremos llamar la funcion cuando hay un callback
+        glfwSetCursorPosCallback(glfwWindow, MouseListener::mousePosCallback);
+        glfwSetMouseButtonCallback(glfwWindow, MouseListener::mouseButtonCallback);
+        glfwSetScrollCallback(glfwWindow, MouseListener::mouseScrollCallback);
+
+        glfwSetKeyCallback(glfwWindow, KeyListener::keyCallback);
 
         //Hacemos que OPENGL sea el contexto actual
         glfwMakeContextCurrent(glfwWindow);
@@ -98,10 +124,24 @@ public class Window {
            //que setearemos mas tarde
 
 
-            glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+            glClearColor(r, g, b, a);
 
             //Esto dice a gl toma el colo seteado recien y daselo a toda la pantalla
             glClear(GL_COLOR_BUFFER_BIT);
+
+            if (fadeToBlack) {
+                //2 reducimos rgb en cada cuadro equitativamente hasta ser negro
+                r = Math.max(r - 0.01f, 0);
+                g = Math.max(g - 0.01f, 0);
+                b = Math.max(b - 0.01f, 0);
+
+            }
+
+            //2 Testeamos que el key callback funcione y generamos un fadeout cuando lo es
+            if (KeyListener.isKeyPressed(GLFW_KEY_SPACE)){
+                System.out.println("Space key is pressed");
+                fadeToBlack = true;
+            }
 
             glfwSwapBuffers(glfwWindow);
         }
