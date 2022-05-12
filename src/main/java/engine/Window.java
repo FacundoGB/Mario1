@@ -3,6 +3,7 @@ package engine;
 import org.lwjgl.Version;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
+import util.Time;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
@@ -19,13 +20,15 @@ public class Window {
     private String title;
     private long glfwWindow;
 
-    private float r, g, b, a;
+    public float r, g, b, a;
 
     private boolean fadeToBlack = false;
 
     // creamos un objeto privado window que es el singleton
     //inicializado a null. Esta es nuestra unica instancia de window.
     private static Window window = null;
+
+    private static Scene currentScene;
 
     private Window() {
         this.width = 1920;
@@ -35,6 +38,21 @@ public class Window {
         b = 1;
         g = 1;
         a = 1;
+    }
+
+    public static void changeScene(int newScene){
+        switch(newScene) {
+            case 0:
+                currentScene = new LevelEditorScene();
+                //currentScene.init();
+                break;
+            case 1:
+                currentScene = new LevelScene();
+                break;
+            default:
+                assert false: "Unknown scene '" + newScene + "'";
+                break;
+        }
     }
 
     public static Window get(){
@@ -112,10 +130,17 @@ public class Window {
         // creates the GLCapabilities instance and makes the OpenGl
         // bindings available for use.
         GL.createCapabilities();
+
+        Window.changeScene(0);
     }
 
     //Ya tenemos inicializada la ventana, ahora necesitamos el loop
     public void loop() {
+        
+        float beginTime = Time.getTime();
+        float endTime = Time.getTime();
+        float dt = -1.0f;
+        
         while (!glfwWindowShouldClose(glfwWindow)) {
             //Poll events
             glfwPollEvents();
@@ -129,7 +154,10 @@ public class Window {
             //Esto dice a gl toma el colo seteado recien y daselo a toda la pantalla
             glClear(GL_COLOR_BUFFER_BIT);
 
-            if (fadeToBlack) {
+            if (dt >= 0) {
+                currentScene.update(dt);
+            }
+/*            if (fadeToBlack) {
                 //2 reducimos rgb en cada cuadro equitativamente hasta ser negro
                 r = Math.max(r - 0.01f, 0);
                 g = Math.max(g - 0.01f, 0);
@@ -141,9 +169,13 @@ public class Window {
             if (KeyListener.isKeyPressed(GLFW_KEY_SPACE)){
                 System.out.println("Space key is pressed");
                 fadeToBlack = true;
-            }
+            }*/
 
             glfwSwapBuffers(glfwWindow);
+
+            endTime = Time.getTime();
+            dt = endTime - beginTime;
+            beginTime = endTime;
         }
     }
 }
